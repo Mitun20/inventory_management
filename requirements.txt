@@ -14,4 +14,5 @@ mysqlclient==2.1.1
 PyMySQL==1.1.1
 SQLAlchemy==2.0.19
 typing_extensions==4.7.1
-Werkzeug==2.3.7
+Werkzeug==3.0.1
+

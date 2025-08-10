@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+
+<h2 style="display: inline-block; margin-right: 15px;">Product Movements</h2>
+
+<!-- Add Movement Button triggers modal -->
+<a href="#" id="addMovementBtn" style="font-size: 30px; color: #00060e; text-decoration: none; vertical-align: middle;" title="Add Movement" data-bs-toggle="modal" data-bs-target="#addMovementModal">
+    <i class="far fa-square-plus"></i>
+</a>
+
+<!-- Add Movement Modal -->
+<div class="modal fade" id="addMovementModal" tabindex="-1" aria-labelledby="addMovementModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMovementModalLabel">Add Movement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addMovementForm">
+          <div class="mb-3">
+            <label class="form-label">Product</label>
+            <select name="product_id" class="form-control" required>
+              <option value="">--Select Product--</option>
+              {% for p in products %}
+                <option value="{{ p.product_id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">From Location</label>
+            <select name="from_location" class="form-control">
+              <option value="">--None--</option>
+              {% for l in locations %}
+                <option value="{{ l.location_id }}">{{ l.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">To Location</label>
+            <select name="to_location" class="form-control">
+              <option value="">--None--</option>
+              {% for l in locations %}
+                <option value="{{ l.location_id }}">{{ l.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="qty" class="form-control" required min="1">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-md">Add</button>
+            <button type="button" class="btn btn-secondary btn-md" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+        <div id="addMovementError" class="text-danger mt-2" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// Handle Add Movement form submission via AJAX
+document.addEventListener("DOMContentLoaded", function() {
+    var addMovementForm = document.getElementById("addMovementForm");
+    if (addMovementForm) {
+        addMovementForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            var formData = new FormData(addMovementForm);
+            var data = {};
+            formData.forEach((v, k) => data[k] = v);
+            fetch("/movement/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    window.location.reload();
+                } else {
+                    document.getElementById("addMovementError").textContent = data.message || "Error adding movement.";
+                    document.getElementById("addMovementError").style.display = "block";
+                }
+            })
+            .catch(() => {
+                document.getElementById("addMovementError").textContent = "Network error";
+                document.getElementById("addMovementError").style.display = "block";
+            });
+        });
+    }
+});
+</script>
+<table class="table table-bordered table-striped" border="1" cellpadding="5" id="movements-table">
+    <thead class="table-dark">
+    <tr>
+        <th>ID</th>
+        <th>Product</th>
+        <th>From Location</th>
+        <th>To Location</th>
+        <th>Quantity</th>
+        <th>Date/Time</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for m in movements %}
+    <tr data-id="{{ m.movement_id }}">
+        <td>{{ m.movement_id }}</td>
+        <td class="editable-dropdown" data-field="product_id" data-value="{{ m.product_id }}">
+            {{ m.product_name }}
+        </td>
+        <td class="editable-dropdown" data-field="from_location_id" data-value="{{ m.from_location_id or '' }}">
+            {{ m.from_location_name or '' }}
+        </td>
+        <td class="editable-dropdown" data-field="to_location_id" data-value="{{ m.to_location_id or '' }}">
+            {{ m.to_location_name or '' }}
+        </td>
+        <td class="editable" data-field="qty" data-value="{{ m.qty }}">{{ m.qty }}</td>
+        <td class="editable" data-field="timestamp" data-input-value="{{ m.timestamp_input }}">
+            {{ m.timestamp if m.timestamp else '' }}
+        </td>
+
+        <td>
+            <button class="edit-btn" title="Edit" style="font-size: 16px;">
+                <i class="fas fa-pen-alt"></i>
+            </button>
+            <button class="save-btn" title="Save" style="font-size: 16px; display: none;">
+                <i class="fas fa-save"></i>
+            </button>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<!-- Hidden data for JS -->
+<script id="products-data" type="application/json">{{ products|tojson }}</script>
+<script id="locations-data" type="application/json">{{ locations|tojson }}</script>
+
+
+{% endblock %}

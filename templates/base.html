@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title if title else "Inventory App" }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">Inventory Management</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('list_products') }}">Products</a>
+                <a class="nav-link" href="{{ url_for('list_locations') }}">Locations</a>
+                <a class="nav-link" href="{{ url_for('list_movements') }}">Movements</a>
+                <a class="nav-link" href="{{ url_for('report') }}">Report</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+<script>
+function enableInlineEditing(tableId, updateUrlBase) {
+    document.querySelectorAll(`#${tableId} .edit-btn`).forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var row = this.closest("tr");
+            row.querySelectorAll(".editable").forEach(function(cell) {
+                var field = cell.dataset.field;
+                var currentValue = cell.dataset.value !== undefined ? cell.dataset.value : cell.textContent.trim();
+                if (field === "qty") {
+                    var qtyValue = currentValue === '' ? '0' : currentValue;
+                    cell.innerHTML = '<input type="number" value="' + qtyValue + '">';
+                } else {
+                    cell.innerHTML = '<input type="text" value="' + currentValue.replace(/"/g, '&quot;') + '">';
+                }
+            });
+            row.querySelector(".edit-btn").style.display = "none";
+            row.querySelector(".save-btn").style.display = "inline";
+        });
+    });
+
+    document.querySelectorAll(`#${tableId} .save-btn`).forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var row = this.closest("tr");
+            var id = row.dataset.id;
+            var updatedData = {};
+
+            row.querySelectorAll(".editable").forEach(function(cell) {
+                updatedData[cell.dataset.field] = cell.querySelector("input").value;
+            });
+
+            fetch(updateUrlBase + "/" + id, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedData)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.status === "success") {
+                    row.querySelectorAll(".editable").forEach(function(cell) {
+                        cell.textContent = updatedData[cell.dataset.field];
+                    });
+                    row.querySelector(".edit-btn").style.display = "inline";
+                    row.querySelector(".save-btn").style.display = "none";
+                }
+            });
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    enableInlineEditing("products-table", "/products/update");
+    enableInlineEditing("locations-table", "/locations/update");
+    enableInlineEditing("movements-table", "/movements/update");
+});
+</script>
+
+<script>
+function enableMovementEditing(tableId, updateUrlBase) {
+    var productsElem = document.getElementById("products-data");
+    var locationsElem = document.getElementById("locations-data");
+    if (!productsElem || !locationsElem) return;
+
+    var products = JSON.parse(productsElem.textContent);
+    var locations = JSON.parse(locationsElem.textContent);
+
+    // Attach edit button click handler
+    document.querySelectorAll(`#${tableId} .edit-btn`).forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var row = this.closest("tr");
+
+            // Convert dropdown cells to <select> with options
+            row.querySelectorAll(".editable-dropdown").forEach(function(cell) {
+                var currentValue = cell.dataset.value;
+                var field = cell.dataset.field;
+                var options = "";
+                console.log(`Editing dropdown field: ${field}, current value: ${currentValue}`);
+                if (field === "product_id") {
+                    options = products.map(function(p) {
+                        return '<option value="' + p.product_id + '"' +
+                            (p.product_id == currentValue ? " selected" : "") +
+                            '>' + p.name + '</option>';
+                    }).join("");
+                } else {
+                    options = '<option value="">--None--</option>' +
+                        locations.map(function(l) {
+                            return '<option value="' + l.location_id + '"' +
+                                (l.location_id == currentValue ? " selected" : "") +
+                                '>' + l.name + '</option>';
+                        }).join("");
+                }
+                cell.innerHTML = '<select>' + options + '</select>';
+            });
+
+            // Convert other editable cells to inputs
+            // Convert other editable cells to inputs
+            row.querySelectorAll(".editable").forEach(function(cell) {
+                var field = cell.dataset.field;
+                var currentValue = cell.dataset.value !== undefined ? cell.dataset.value : cell.textContent.trim();
+                console.log(`Editing field: ${field}, current value: ${currentValue}, raw content: '${cell.textContent}'`);
+
+                if (field === "qty") {
+                    // Handle empty or null quantity
+                    var qtyValue = currentValue === '' ? '0' : currentValue;
+                    console.log(`Creating number input for quantity with value: ${qtyValue}`);
+                    cell.innerHTML = `<input type="number" value="${qtyValue}">`;
+                } else if (field === "timestamp") {
+                    var inputValue = cell.dataset.inputValue || currentValue;
+                    console.log(`Creating datetime input with value: ${inputValue}`);
+                    if (inputValue && !inputValue.includes("T")) {
+                        inputValue = inputValue.replace(" | ", "T");
+                        console.log(`Formatted datetime value: ${inputValue}`);
+                    }
+                    cell.innerHTML = `<input type="datetime-local" value="${inputValue || ''}">`;
+                } else {
+                    console.log(`Creating text input with value: ${currentValue}`);
+                    cell.innerHTML = `<input type="text" value="${currentValue.replace(/"/g, '&quot;')}">`;
+                }
+            });
+
+            this.style.display = "none"; // hide edit button
+            row.querySelector(".save-btn").style.display = "inline"; // show save button
+        });
+    });
+
+    // Attach save button click handler
+    document.querySelectorAll(`#${tableId} .save-btn`).forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var row = this.closest("tr");
+            var id = row.dataset.id;
+            var updatedData = {};
+
+            // Collect dropdown values
+            row.querySelectorAll(".editable-dropdown").forEach(function(cell) {
+                updatedData[cell.dataset.field] = cell.querySelector("select").value || null;
+            });
+
+            // Collect input values for qty, timestamp, etc
+            row.querySelectorAll(".editable").forEach(function(cell) {
+                updatedData[cell.dataset.field] = cell.querySelector("input").value;
+            });
+
+            // Send updated data to backend
+            fetch(updateUrlBase + "/" + id, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedData)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.status === "success") {
+                    // Update dropdown cells with display names & data-value attribute
+                    row.querySelectorAll(".editable-dropdown").forEach(function(cell) {
+                        var field = cell.dataset.field;
+                        var value = updatedData[field];
+                        var displayName = "";
+
+                        if (field === "product_id") {
+                            var prod = products.find(function(p) { return p.product_id == value; });
+                            displayName = prod ? prod.name : "";
+                        } else {
+                            var loc = locations.find(function(l) { return l.location_id == value; });
+                            displayName = loc ? loc.name : "";
+                        }
+                        cell.textContent = displayName;
+                        cell.dataset.value = value || "";
+                    });
+
+                    // Update editable cells (qty, timestamp)
+                    row.querySelectorAll(".editable").forEach(function(cell) {
+                        var field = cell.dataset.field;
+                        if (field === "timestamp") {
+                            // Convert back "YYYY-MM-DDTHH:MM" to "YYYY-MM-DD HH:MM"
+                            cell.textContent = updatedData[field].replace("T", " | ");
+                        } else {
+                            cell.textContent = updatedData[field];
+                        }
+                    });
+
+                    // Toggle buttons
+                    row.querySelector(".edit-btn").style.display = "inline";
+                    row.querySelector(".save-btn").style.display = "none";
+                } else {
+                    alert("Error saving changes");
+                }
+            })
+            .catch(() => alert("Network error"));
+        });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    enableMovementEditing("movements-table", "/movements/update");
+});
+</script>
+</html>

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<h2 style="display: inline-block; margin-right: 15px;">Locations</h2>
+
+<!-- Add Location Button triggers modal -->
+<a href="#" id="addLocationBtn" style="font-size: 30px; color: #00060e; text-decoration: none; vertical-align: middle;" title="Add Location" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+    <i class="far fa-square-plus"></i>
+</a>
+
+<!-- Add Location Modal -->
+<div class="modal fade" id="addLocationModal" tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addLocationModalLabel">Add Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addLocationForm">
+          <div class="mb-3">
+            <label class="form-label">ID</label>
+            <input type="text" name="location_id" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-md">Add</button>
+            <button type="button" class="btn btn-secondary btn-md" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+        <div id="addLocationError" class="text-danger mt-2" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<table class="table table-bordered table-striped" id="locations-table">
+    <thead class="table-dark">
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Name</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for l in locations %}
+        <tr data-id="{{ l.location_id }}">
+            <td>{{ l.location_id }}</td>
+            <td class="editable" data-field="name">{{ l.name }}</td>
+            <td>
+                <button class="edit-btn" title="Edit" style="font-size: 16px;">
+                    <i class="fas fa-pen-alt"></i>
+                </button>
+                <button class="save-btn" title="Save" style="font-size: 16px; display: none;">
+                    <i class="fas fa-save"></i>
+                </button>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+// Handle Add Location form submission via AJAX
+document.addEventListener("DOMContentLoaded", function() {
+    var addLocationForm = document.getElementById("addLocationForm");
+    if (addLocationForm) {
+        addLocationForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            var formData = new FormData(addLocationForm);
+            var data = {};
+            formData.forEach((v, k) => data[k] = v);
+            fetch("/location/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams(data)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    window.location.reload();
+                } else {
+                    document.getElementById("addLocationError").textContent = data.message || "Error adding location.";
+                    document.getElementById("addLocationError").style.display = "block";
+                }
+            })
+            .catch(() => {
+                document.getElementById("addLocationError").textContent = "Network error";
+                document.getElementById("addLocationError").style.display = "block";
+            });
+        });
+    }
+});
+</script>
+
+{% endblock %}
